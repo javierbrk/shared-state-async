@@ -34,7 +34,7 @@ option(SS_STATIC_LIBSTDCPP "Statically link libstdc++" ON)
 option(SS_STRIP_SYMBOLS "Strip unused symbols from binary" ON)
 
 set(OPTIMIZATION_FLAGS
-    "-O3"                         # Aggressive optimization
+    "-Os"                         # Optimization for size
     "-ffunction-sections"         # Place each function in its own section
     "-fdata-sections"            # Place each data item in its own section
     "-fvisibility=hidden"        # Hide symbols by default
@@ -181,10 +181,7 @@ if(SS_STRIP_SYMBOLS)
 
         if(EXISTS "${TOOLCHAIN_STRIP}")
             set(CMAKE_STRIP "${TOOLCHAIN_STRIP}" CACHE FILEPATH "Path to toolchain strip" FORCE)
-            message(STATUS "Using toolchain strip: ${CMAKE_STRIP}")
-            add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
-            COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:${EXECUTABLE_NAME}>
-            COMMENT "Stripping unused symbols from ${EXECUTABLE_NAME}")
+            message(STATUS "Auto-detected toolchain strip: ${CMAKE_STRIP}")
         else()
             message(WARNING "No toolchain strip found at ${TOOLCHAIN_STRIP}, will skip stripping")
         endif()
