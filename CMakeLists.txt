@@ -34,7 +34,7 @@ option(SS_STATIC_LIBSTDCPP "Statically link libstdc++" ON)
 option(SS_STRIP_SYMBOLS "Strip unused symbols from binary" ON)
 
 set(OPTIMIZATION_FLAGS
-    "-O3"                         # Aggressive optimization
+    "-Os"                         # Optimization for size
     "-ffunction-sections"         # Place each function in its own section
     "-fdata-sections"            # Place each data item in its own section
     "-fvisibility=hidden"        # Hide symbols by default
@@ -170,25 +170,26 @@ set_target_properties(
 )
 
 if(SS_STRIP_SYMBOLS)
+    # Auto-detect strip tool from the cross-compiler path if not already set
     if(NOT CMAKE_STRIP)
-        # Tomamos el path del compilador C (gcc o clang usado por OpenWrt)
         get_filename_component(TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
-        get_filename_component(TOOLCHAIN_PREFIX "${CMAKE_C_COMPILER}" NAME_WE) # nombre sin extensión
-    
-        # Reemplazamos el "gcc" por "strip" para deducir la ruta correcta
+        get_filename_component(TOOLCHAIN_PREFIX "${CMAKE_C_COMPILER}" NAME_WE)
+        # Derive strip path from GCC: e.g. mipsel-openwrt-linux-musl-gcc -> mipsel-openwrt-linux-musl-strip
         string(REPLACE "gcc" "strip" TOOLCHAIN_STRIP "${TOOLCHAIN_BIN_DIR}/${TOOLCHAIN_PREFIX}")
-    
         if(EXISTS "${TOOLCHAIN_STRIP}")
             set(CMAKE_STRIP "${TOOLCHAIN_STRIP}" CACHE FILEPATH "Path to toolchain strip" FORCE)
-            message(STATUS "Using toolchain strip: ${CMAKE_STRIP}")
-            add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
-            COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:${EXECUTABLE_NAME}>
-            COMMENT "Stripping unused symbols from ${EXECUTABLE_NAME}")
+            message(STATUS "Auto-detected toolchain strip: ${CMAKE_STRIP}")
         else()
             message(WARNING "No toolchain strip found at ${TOOLCHAIN_STRIP}, will skip stripping")
         endif()
     endif()
 
+    # Strip the binary if we have a strip tool (either provided or auto-detected)
+    if(CMAKE_STRIP)
+        add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+            COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:${EXECUTABLE_NAME}>
+            COMMENT "Stripping unused symbols from ${EXECUTABLE_NAME}")
+    endif()
 endif()
 
 install(TARGETS ${LIBRARY_NAME} ${EXECUTABLE_NAME} )
