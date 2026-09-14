@@ -170,12 +170,15 @@ set_target_properties(
 )
 
 if(SS_STRIP_SYMBOLS)
-    # Auto-detect strip tool from the cross-compiler path if not already set
-    if(NOT CMAKE_STRIP)
-        get_filename_component(TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
-        get_filename_component(TOOLCHAIN_PREFIX "${CMAKE_C_COMPILER}" NAME_WE)
-        # Derive strip path from GCC: e.g. mipsel-openwrt-linux-musl-gcc -> mipsel-openwrt-linux-musl-strip
-        string(REPLACE "gcc" "strip" TOOLCHAIN_STRIP "${TOOLCHAIN_BIN_DIR}/${TOOLCHAIN_PREFIX}")
+    # Auto-detect strip tool from the cross-compiler path if not already set to an existing tool
+    # OpenWrt 24 uses "-DCMAKE_STRIP=:"
+    if(NOT EXISTS "${CMAKE_STRIP}")
+        get_filename_component(TOOLCHAIN_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+        get_filename_component(TOOLCHAIN_PREFIX "${CMAKE_CXX_COMPILER}" NAME)
+        # Derive strip path from C++ compiler: e.g. mips-...-g++ -> mips-...-strip
+        string(REGEX REPLACE "(g\\+\\+|gcc)$" "strip" STRIP_NAME "${TOOLCHAIN_PREFIX}")
+        set(TOOLCHAIN_STRIP "${TOOLCHAIN_BIN_DIR}/${STRIP_NAME}")
+
         if(EXISTS "${TOOLCHAIN_STRIP}")
             set(CMAKE_STRIP "${TOOLCHAIN_STRIP}" CACHE FILEPATH "Path to toolchain strip" FORCE)
             message(STATUS "Auto-detected toolchain strip: ${CMAKE_STRIP}")
@@ -185,7 +188,7 @@ if(SS_STRIP_SYMBOLS)
     endif()
 
     # Strip the binary if we have a strip tool (either provided or auto-detected)
-    if(CMAKE_STRIP)
+    if(EXISTS "${CMAKE_STRIP}")
         add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
             COMMAND ${CMAKE_STRIP} --strip-unneeded $<TARGET_FILE:${EXECUTABLE_NAME}>
             COMMENT "Stripping unused symbols from ${EXECUTABLE_NAME}")
